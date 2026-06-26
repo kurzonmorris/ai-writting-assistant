@@ -46,6 +46,14 @@ enum StorageProvider {
   ONEDRIVE // not yet implemented — listed for future use
 }
 
+// Which AI provider a writer's own API key is for. Per the "bring your own key"
+// decision (doc 00, Q1), each writer supplies their own key; the app does not
+// pay for usage.
+enum AiProvider {
+  ANTHROPIC
+  OPENAI // optional / future
+}
+
 // What kind of work a project is (doc 01, doc 04).
 enum ProjectKind {
   NOVEL
@@ -124,9 +132,37 @@ model User {
   deletedAt DateTime?
 
   // A user owns many of each of these (the "[]" means "many").
-  storageConnections StorageConnection[]
-  projects           Project[]
-  auditLogs          AuditLog[]
+  storageConnections  StorageConnection[]
+  providerCredentials ProviderCredential[]
+  projects            Project[]
+  auditLogs           AuditLog[]
+}
+
+
+// ============================================================================
+//  PROVIDER CREDENTIAL — a writer's own AI API key (doc 00 Q1, doc 05)
+// ============================================================================
+//  Because writers "bring their own key", we store each writer's AI provider key
+//  so they don't have to paste it every time. Like all secrets, the key is
+//  ENCRYPTED AT REST using TOKEN_ENCRYPTION_KEY and decrypted only in the
+//  backend, in memory, when making an AI call. It is NEVER sent to the browser.
+model ProviderCredential {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  provider          AiProvider
+  encryptedApiKey   String // ciphertext, never the raw key
+  preferredModel    String? // the writer's chosen model for this provider
+  lastValidatedAt   DateTime? // when we last confirmed the key works
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // A writer keeps at most one active credential per provider.
+  @@unique([userId, provider])
+  @@index([userId])
 }
 
 

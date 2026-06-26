@@ -27,10 +27,13 @@ malformed is rejected (doc 07).
 
 - The model is a **setting** (`ANTHROPIC_MODEL`), never hard-coded, so we can
   adopt newer models easily.
-- API keys come from environment variables and stay server-side only (doc 05).
+- **Writers bring their own API key** (doc 00, Q1). The key is loaded from the
+  writer's encrypted `ProviderCredential` (doc 04), decrypted in memory here, and
+  stays server-side only (doc 05). A `DEV_*` env key exists for local testing only.
 - The writer's text is sent as **data to analyse, never as instructions**
   (prompt-injection defence — doc 05/07).
-- **OPEN (Q1):** app-owned key vs. writer's own key; which providers at launch.
+- **Still OPEN (Q16):** how to onboard a non-technical writer through getting and
+  entering their key.
 
 ## Status
 
