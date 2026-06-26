@@ -1,0 +1,438 @@
+// ============================================================================
+//  DATABASE SCHEMA — AI Writing Assistant
+// ============================================================================
+//  This file is the single source of truth for the database structure. The
+//  human-readable explanation of every table and the reasoning behind it lives
+//  in ../../docs/04-database-design.md — read that alongside this file.
+//
+//  Reading guide for non-coders:
+//    • "model X" below = a table in the database (a kind of record).
+//    • Each line inside a model = a column (a field on that record).
+//    • "@id" marks the unique identifier; we use random UUIDs (doc 04).
+//    • "?" after a type means the value is optional (can be empty).
+//    • "[]" means "many of these" (a one-to-many relationship).
+//    • "@relation(...)" wires two tables together (a foreign key).
+//    • "enum" = a fixed list of allowed values (invalid values can't be stored).
+//
+//  Best practices applied here (see doc 04 for why):
+//    • UUID primary keys, createdAt/updatedAt on every table, soft deletes,
+//      foreign keys, ownerId scoping, enums for fixed sets, indexes on hot
+//      columns, and encrypted-at-rest token storage.
+// ============================================================================
+
+
+// ── Generator & datasource ─────────────────────────────────────────────────
+// "generator" tells Prisma to produce the type-safe client our code uses.
+generator client {
+  provider = "prisma-client-js"
+}
+
+// "datasource" tells Prisma which database to talk to. The actual connection
+// string comes from the DATABASE_URL environment variable (never hard-coded).
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+// ============================================================================
+//  ENUMS — fixed lists of allowed values
+// ============================================================================
+
+// Which cloud-storage provider a connection is for (doc 06).
+enum StorageProvider {
+  GOOGLE_DRIVE
+  DROPBOX // not yet implemented — listed for future use
+  ONEDRIVE // not yet implemented — listed for future use
+}
+
+// What kind of work a project is (doc 01, doc 04).
+enum ProjectKind {
+  NOVEL
+  SHORT_STORY
+  GAME_DESIGN
+  TTRPG_CAMPAIGN
+  OTHER
+}
+
+// The categories of "things" we track (doc 08).
+enum EntityType {
+  CHARACTER
+  LOCATION
+  BUILDING
+  ENVIRONMENT
+  ITEM
+  EQUIPMENT
+  CREATURE
+  ANIMAL
+  FACTION
+  EVENT
+  OTHER
+}
+
+// The lifecycle state of a single extracted fact (doc 04, doc 09).
+//   ACTIVE     = currently accepted as part of the knowledge base
+//   SUPERSEDED = replaced by another fact the writer chose as canon
+//   DISPUTED   = part of an unresolved contradiction
+enum FactStatus {
+  ACTIVE
+  SUPERSEDED
+  DISPUTED
+}
+
+// The state of a contradiction the writer needs to resolve (doc 09).
+enum ContradictionStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// The state of a background extraction job (doc 07).
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+// The kinds of relationship between two entities (doc 08). This is the
+// hyperlink graph that powers cross-referencing.
+enum LinkType {
+  OWNS
+  LOCATED_IN
+  MEMBER_OF
+  RELATED_TO
+  ALLY_OF
+  ENEMY_OF
+  PARTICIPATED_IN
+  MENTIONS
+}
+
+
+// ============================================================================
+//  USER — a person with an account
+// ============================================================================
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  displayName String?
+
+  // Standard auditing timestamps on every table (doc 04).
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  // Soft delete: set instead of physically removing the row, so it's recoverable.
+  deletedAt DateTime?
+
+  // A user owns many of each of these (the "[]" means "many").
+  storageConnections StorageConnection[]
+  projects           Project[]
+  auditLogs          AuditLog[]
+}
+
+
+// ============================================================================
+//  STORAGE CONNECTION — a link to the writer's cloud storage (doc 06)
+// ============================================================================
+//  This is the most sensitive table: the tokens here grant access to the
+//  writer's files. Tokens are ENCRYPTED AT REST (doc 05) — the columns below
+//  hold ciphertext, never plain tokens.
+model StorageConnection {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  provider StorageProvider
+
+  // Encrypted credentials. Decryption happens only in the backend, in memory,
+  // using TOKEN_ENCRYPTION_KEY from the environment (never stored in the DB).
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+  scopes                String? // the permissions granted (least privilege, doc 06)
+  expiresAt             DateTime?
+
+  // Where this app's files live inside the writer's storage (doc 06).
+  rootFolderId String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([userId])
+}
+
+
+// ============================================================================
+//  PROJECT — one body of work (a novel, a campaign, etc.) (doc 04)
+// ============================================================================
+model Project {
+  id     String @id @default(uuid())
+  userId String
+  // ownerId scoping: everything below hangs off a project, which belongs to one
+  // user, so a user's data can never bleed into another's (doc 04, doc 05).
+  user   User   @relation(fields: [userId], references: [id])
+
+  title       String
+  kind        ProjectKind @default(OTHER)
+  description String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  sourceDocuments SourceDocument[]
+  entities        Entity[]
+  contradictions  Contradiction[]
+  extractionJobs  ExtractionJob[]
+
+  @@index([userId])
+}
+
+
+// ============================================================================
+//  SOURCE DOCUMENT — a unit of imported text (a chapter, a session log) (doc 04)
+// ============================================================================
+model SourceDocument {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  title      String
+  orderIndex Int     @default(0) // keeps chapters in sequence
+  cloudFileId String? // where the original lives in the writer's storage (doc 06)
+  // A fingerprint of the text; lets us skip re-processing unchanged docs (doc 07).
+  contentHash String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  textSpans      TextSpan[]
+  extractionJobs ExtractionJob[]
+
+  @@index([projectId])
+}
+
+
+// ============================================================================
+//  TEXT SPAN — an exact location within a source document (doc 04)
+// ============================================================================
+//  This is what makes every fact traceable and powers "jump to the exact spot"
+//  during contradiction review (doc 09).
+model TextSpan {
+  id               String         @id @default(uuid())
+  sourceDocumentId String
+  sourceDocument   SourceDocument @relation(fields: [sourceDocumentId], references: [id])
+
+  startOffset Int // character position where the evidence begins
+  endOffset   Int // character position where it ends
+  excerpt     String // the quoted text, shown to the writer as evidence
+
+  createdAt DateTime @default(now())
+
+  // A span can be cited by many facts and by many entity links.
+  facts        Fact[]
+  entityLinks  EntityLink[]
+
+  @@index([sourceDocumentId])
+}
+
+
+// ============================================================================
+//  ENTITY — a tracked "thing": character, place, item, etc. (doc 08)
+// ============================================================================
+model Entity {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  type          EntityType
+  canonicalName String // the primary display name
+  summary       String? // a short overview, compiled only from sourced facts
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  aliases        EntityAlias[]
+  facts          Fact[]
+  contradictions Contradiction[]
+
+  // Cross-reference links where THIS entity is the source / the target.
+  linksFrom EntityLink[] @relation("LinksFrom")
+  linksTo   EntityLink[] @relation("LinksTo")
+
+  // Index on the columns we filter by most: which project, what type.
+  @@index([projectId, type])
+}
+
+
+// ============================================================================
+//  ENTITY ALIAS — the other names an entity is known by (doc 08)
+// ============================================================================
+//  So "Will", "William", and "the captain" all resolve to one entity.
+model EntityAlias {
+  id       String @id @default(uuid())
+  entityId String
+  entity   Entity @relation(fields: [entityId], references: [id])
+
+  alias      String
+  confidence Float? // how sure we are this alias maps to this entity
+
+  createdAt DateTime @default(now())
+
+  @@index([entityId])
+}
+
+
+// ============================================================================
+//  FACT — a single statement about an entity; the atomic unit of knowledge
+// ============================================================================
+//  CRITICAL RULE: every fact cites its source (textSpanId is required). If the
+//  AI can't point to where a fact came from, the fact is rejected (doc 07).
+model Fact {
+  id       String @id @default(uuid())
+  entityId String
+  entity   Entity @relation(fields: [entityId], references: [id])
+
+  attribute String // e.g. "eyeColour", "occupation", "speechStyle" (doc 08)
+  value     String // e.g. "blue", "blacksmith"
+
+  // The source of this fact — REQUIRED, never optional. This is traceability.
+  textSpanId String
+  textSpan   TextSpan @relation(fields: [textSpanId], references: [id])
+
+  // Which extraction run produced this fact (provenance, doc 04/07).
+  extractionJobId String?
+  extractionJob   ExtractionJob? @relation(fields: [extractionJobId], references: [id])
+
+  status     FactStatus @default(ACTIVE)
+  confidence Float? // the AI's confidence in this extraction
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // The two sides of a contradiction point back to facts (see Contradiction).
+  contradictionsAsA Contradiction[] @relation("FactA")
+  contradictionsAsB Contradiction[] @relation("FactB")
+
+  // We frequently look up "all facts for this entity and attribute" when
+  // checking for contradictions during merge (doc 07/09).
+  @@index([entityId, attribute])
+}
+
+
+// ============================================================================
+//  ENTITY LINK — a typed cross-reference between two entities (doc 08)
+// ============================================================================
+//  This table IS the hyperlink graph: it's how the knowledge base becomes a
+//  navigable wiki ("follow the link to read what you wrote before").
+model EntityLink {
+  id String @id @default(uuid())
+
+  fromEntityId String
+  fromEntity   Entity @relation("LinksFrom", fields: [fromEntityId], references: [id])
+
+  toEntityId String
+  toEntity   Entity @relation("LinksTo", fields: [toEntityId], references: [id])
+
+  relationship LinkType
+
+  // Where the relationship was observed in the text (so we can show why it
+  // exists and jump to it).
+  textSpanId String?
+  textSpan   TextSpan? @relation(fields: [textSpanId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([fromEntityId])
+  @@index([toEntityId])
+}
+
+
+// ============================================================================
+//  CONTRADICTION — a flagged conflict for the writer to resolve (doc 09)
+// ============================================================================
+//  The AI never resolves these. It records both sides (each with its own source
+//  span via the linked facts) and leaves the decision to the writer.
+model Contradiction {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  entityId  String
+  entity    Entity @relation(fields: [entityId], references: [id])
+  attribute String // the attribute in conflict, e.g. "eyeColour"
+
+  // The two conflicting facts. Each fact carries its own TextSpan, which is how
+  // we send the writer to the exact spot for each side (doc 09).
+  factAId String
+  factA   Fact   @relation("FactA", fields: [factAId], references: [id])
+  factBId String
+  factB   Fact   @relation("FactB", fields: [factBId], references: [id])
+
+  status         ContradictionStatus @default(OPEN)
+  resolutionNote String?
+  resolvedByUserId String?
+  resolvedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId, status])
+  @@index([entityId])
+}
+
+
+// ============================================================================
+//  EXTRACTION JOB — one background run that turned text into knowledge (doc 07)
+// ============================================================================
+//  Keeping a record of every run gives us provenance, debuggability, and a basis
+//  for tracking AI usage/cost.
+model ExtractionJob {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  sourceDocumentId String?
+  sourceDocument   SourceDocument? @relation(fields: [sourceDocumentId], references: [id])
+
+  provider String // which AI service (e.g. "anthropic")
+  model    String // which model was used
+
+  status JobStatus @default(QUEUED)
+  error  String? // populated if the job FAILED
+
+  // Rough usage accounting for cost visibility (doc 07).
+  tokenUsage Int?
+
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // The facts this run produced (provenance).
+  facts Fact[]
+
+  @@index([projectId, status])
+}
+
+
+// ============================================================================
+//  AUDIT LOG — an append-only record of significant actions (doc 04, doc 05)
+// ============================================================================
+//  For the account owner's own visibility and for incident investigation.
+//  Never contains secrets or full manuscript text.
+model AuditLog {
+  id     String @id @default(uuid())
+  userId String?
+  user   User?  @relation(fields: [userId], references: [id])
+
+  action    String // e.g. "SIGN_IN", "STORAGE_CONNECTED", "CONTRADICTION_RESOLVED"
+  metadata  String? // small JSON blob with context (no secrets)
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

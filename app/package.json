@@ -1,0 +1,49 @@
+{
+  "_comment": "PLANNED dependency list for the AI Writing Assistant web app. This documents the technology choices from docs/03-technology-stack.md. Versions are intentionally left as placeholders ('*') until the project is initialised in Phase 1, at which point exact, pinned versions are installed. This file is a plan, not yet an installable manifest.",
+  "name": "ai-writing-assistant",
+  "version": "0.0.0",
+  "private": true,
+  "description": "An AI-powered story bible: reads a writer's prose and compiles a cross-referenced, hyperlinked reference library. The AI compiles and cross-references; it never writes or edits the story.",
+  "scripts": {
+    "_comment_scripts": "Planned commands. 'dev' runs the site locally; 'worker' runs the background extraction worker; 'db:*' manage the database via Prisma.",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "worker": "node ./src/server/jobs/worker.js",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "_comment_web": "Web framework + UI.",
+    "next": "*",
+    "react": "*",
+    "react-dom": "*",
+    "_comment_auth": "Sign in with Google + secure sessions (doc 05).",
+    "next-auth": "*",
+    "_comment_db": "Database access via the Prisma ORM (doc 04).",
+    "@prisma/client": "*",
+    "_comment_jobs": "Background job queue for slow AI extraction (doc 02, 07).",
+    "bullmq": "*",
+    "ioredis": "*",
+    "_comment_ai": "AI provider SDKs. Anthropic is the default provider (doc 07).",
+    "@anthropic-ai/sdk": "*",
+    "_comment_validation": "Runtime validation of all incoming/AI data (doc 05, 07).",
+    "zod": "*"
+  },
+  "devDependencies": {
+    "_comment_types": "TypeScript and type definitions.",
+    "typescript": "*",
+    "@types/node": "*",
+    "@types/react": "*",
+    "_comment_db_dev": "Prisma CLI for migrations and schema management.",
+    "prisma": "*",
+    "_comment_quality": "Linting and formatting for consistent, readable code.",
+    "eslint": "*",
+    "prettier": "*",
+    "_comment_styling": "Utility CSS for readable styling (doc 03).",
+    "tailwindcss": "*"
+  }
+}
