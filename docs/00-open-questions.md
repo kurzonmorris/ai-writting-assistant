@@ -38,27 +38,30 @@ Status key: 🔴 needs a decision · 🟡 leaning a way · 🟢 decided
 
 ## Priority 2 — needed soon, not blocking
 
-### Q5. How to model change over time (chronology)? 🔴
-- Many facts change legitimately as the story progresses (location, status). We
-  need a way to say "true as of chapter N" so "both valid" contradictions and
-  character arcs are represented cleanly.
-- Affects how strict contradiction detection is.
-- Related: doc 08, doc 09.
+### Q5. How to model change over time (chronology)? 🟢 (with a refinement open)
+- **DECIDED (2026-06-26): track a timeline.** Each fact records "true as of
+  chapter N" (`Fact.timelineOrder`). A later value for a time-varying attribute
+  makes the earlier fact `HISTORICAL` (kept as history, not an error); only facts
+  that disagree at the *same* point in time are contradictions.
+- **Still open:** explicit story-time for flashbacks / non-linear narratives
+  (default uses document/chapter order). Tracked as a refinement.
+- Related: doc 08, doc 09, doc 07, doc 04.
 
 ### Q6. Knowledge-base file format in cloud storage? 🟡
 - Leaning **Markdown** (readable, portable, supports links). Confirm, or prefer
   another format?
 - Related: doc 06.
 
-### Q7. How aggressive should entity auto-merging be? 🔴
-- When the AI is unsure whether two mentions are the same entity, do we
-  auto-merge, keep separate, or ask the writer? (Over-merging corrupts the KB.)
+### Q7. How aggressive should entity auto-merging be? 🟢
+- **DECIDED (2026-06-26): ask the writer when unsure.** Auto-merge only when
+  confident; otherwise prompt "are these the same?". Over-merging is worse than a
+  duplicate. (Exact confidence threshold + review UX still to be tuned.)
 - Related: doc 07, doc 08.
 
-### Q8. How sensitive should contradiction detection be? 🔴
-- More flags = safer but noisier; fewer = cleaner but risks missing conflicts.
-- Where's the comfort point? Should it be adjustable per project?
-- Related: doc 09.
+### Q8. How sensitive should contradiction detection be? 🟢
+- **DECIDED (2026-06-26): adjustable per project, changeable on the fly** via a
+  slider on the page (`Project.contradictionSensitivity`, default = balanced).
+- Related: doc 09, doc 04.
 
 ---
 
@@ -99,10 +102,11 @@ Status key: 🔴 needs a decision · 🟡 leaning a way · 🟢 decided
   editing, or send the writer to edit in their own tool and re-import?
 - Related: doc 09.
 
-### Q15. Which entity types and attributes matter most to the owner? 🟡
-- Doc 08 proposes a broad set. Confirm the priorities and add any missing types
-  (the owner mentioned characters, animals/pets, buildings, places,
-  environments, items, equipment — all included).
+### Q15. Which entity types and attributes matter most to the owner? 🟢
+- **DECIDED (2026-06-26): all matter, in this priority order** — characters,
+  places, environments, factions, equipment, items (most important first). Used
+  to prioritise extraction and order the navigator. Other types (creatures,
+  animals, buildings, events) still tracked.
 - Related: doc 08.
 
 ---
@@ -118,3 +122,7 @@ Status key: 🔴 needs a decision · 🟡 leaning a way · 🟢 decided
 | 2026-06-26 | Cloud storage scope (Q2) | App-folder only (most private). |
 | 2026-06-26 | Phase 1 scope (Q3) | Core loop, no cloud storage until Phase 4. |
 | 2026-06-26 | Hosting (Q4) | Managed cloud hosting. |
+| 2026-06-26 | Change over time (Q5) | Track a timeline ("true as of chapter N"); changes become history, not conflicts. |
+| 2026-06-26 | Entity merging (Q7) | Ask the writer when unsure; auto-merge only when confident. |
+| 2026-06-26 | Contradiction sensitivity (Q8) | Adjustable per project via an on-the-fly slider; default balanced. |
+| 2026-06-26 | Entity priorities (Q15) | Order: characters, places, environments, factions, equipment, items. |

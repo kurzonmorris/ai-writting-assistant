@@ -44,9 +44,13 @@ A layout with three main areas:
 - The wiki-style reference page for one entity (the example in doc 08).
 - Facts grouped by category, **each showing its source** with a link to the exact
   passage.
+- For time-varying details (location, status…), shows the **current** value and a
+  **timeline / history** of how it changed (doc 08 chronology).
 - Related entities listed as **hyperlinks** (the cross-reference graph).
 - Disputed facts visibly marked, with a link into the review queue.
 - "Appears in" list of source documents.
+- Entity-type groups in the navigator follow the **priority order** (characters,
+  places, environments, factions, equipment, items — doc 08).
 
 ### 7. Source document viewer
 - Read a source document.
@@ -57,6 +61,8 @@ A layout with three main areas:
 - The list of `OPEN` contradictions (doc 09).
 - Each item shows both sides with sources and the resolution choices.
 - A history view of resolved/dismissed items.
+- A **sensitivity slider** (Relaxed ↔ Strict) the writer can adjust on the fly,
+  per project, to control how eagerly conflicts are flagged (doc 09).
 
 ### 9. Settings
 - **AI provider & model** selection (doc 07), with a clear note about which

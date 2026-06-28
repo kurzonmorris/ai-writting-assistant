@@ -79,11 +79,16 @@ enum EntityType {
 }
 
 // The lifecycle state of a single extracted fact (doc 04, doc 09).
-//   ACTIVE     = currently accepted as part of the knowledge base
-//   SUPERSEDED = replaced by another fact the writer chose as canon
+//   ACTIVE     = currently accepted as the CURRENT truth in the knowledge base
+//   HISTORICAL = was true earlier in the story but later changed (NOT an error);
+//                this powers the "track a timeline" decision (doc 00, Q5) so a
+//                legitimate change over time is kept as history, not a conflict
+//   SUPERSEDED = replaced because the writer judged it an ERROR (chose the other
+//                value as canon during contradiction review)
 //   DISPUTED   = part of an unresolved contradiction
 enum FactStatus {
   ACTIVE
+  HISTORICAL
   SUPERSEDED
   DISPUTED
 }
@@ -210,6 +215,12 @@ model Project {
   title       String
   kind        ProjectKind @default(OTHER)
   description String?
+
+  // How eagerly to flag contradictions for THIS project (doc 00, Q8; doc 09).
+  // 0 = only obvious conflicts, 100 = catch everything. The writer changes this
+  // on the fly with a slider on the project page; raising it can surface more
+  // potential conflicts on the next/again review pass.
+  contradictionSensitivity Int @default(50)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -343,6 +354,15 @@ model Fact {
 
   status     FactStatus @default(ACTIVE)
   confidence Float? // the AI's confidence in this extraction
+
+  // TIMELINE SUPPORT (doc 00, Q5; doc 08). The story-position at which this fact
+  // is true — i.e. "true as of chapter N". By default this is taken from the
+  // source document's orderIndex (the chapter order), but it can be overridden
+  // when the text itself places an event elsewhere in time (e.g. a flashback).
+  // Two facts that disagree are only a CONTRADICTION if they overlap in time;
+  // if they're at different timeline positions, it's a legitimate CHANGE and the
+  // earlier one becomes HISTORICAL rather than disputed.
+  timelineOrder Int?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

@@ -19,9 +19,13 @@ attribute** cannot both be true:
 
 Not every difference is a contradiction. Things that **change legitimately over
 time** (location, mood, injuries, status) are not conflicts — they're the story
-progressing. Distinguishing "changed over time" from "inconsistent" is subtle and
-ties into the chronology question marked **OPEN** in doc 00. The safe default:
-when unsure, **flag for review** rather than guess.
+progressing. Because we **track a timeline** (doc 00 Q5; doc 08), each fact knows
+*when* in the story it's true (`Fact.timelineOrder`). Two facts only conflict if
+they disagree **at the same point in time**. If a later chapter gives a new value
+for a time-varying attribute, the earlier fact becomes `HISTORICAL` (kept as
+history, not an error) instead of being flagged. This greatly cuts false alarms
+from normal story progression. When the timeline genuinely can't tell whether a
+difference is a change or a mistake, the safe default is to **flag for review**.
 
 ## How detection works
 
@@ -41,6 +45,30 @@ Some conflicts are obvious string differences ("blue" vs "green"); others are
 **semantic** ("only child" vs "has a sister") and need the AI to judge meaning.
 We use the AI to assess semantic conflicts but **only to detect and explain
 them** — never to resolve them.
+
+## Sensitivity — adjustable per project, on the fly (DECIDED, doc 00 Q8)
+
+How eagerly conflicts are flagged is **a setting on each project**
+(`Project.contradictionSensitivity`, doc 04), and the writer can **change it on
+the fly** — the UI shows it as a **slider on the project page**:
+
+```
+Contradiction flagging:   Relaxed ──────●──────── Strict
+                          (only obvious)        (catch everything)
+```
+
+- **Low / Relaxed** — flag only strong, unambiguous conflicts. Cleaner review
+  queue; some subtle inconsistencies may slip through.
+- **Middle (default)** — balanced: flag clear factual conflicts, don't nitpick
+  wording.
+- **High / Strict** — flag even subtle or possible conflicts. Fewer missed
+  errors, larger review queue.
+
+Because it's per project and live, the writer can tune it differently for, say, a
+tightly-plotted novel vs. a loose campaign, and dial it up for a consistency pass
+then back down for everyday work. Raising sensitivity can surface additional
+potential conflicts on the next review pass; lowering it hides weaker ones without
+deleting anything.
 
 ## The review experience
 
@@ -106,7 +134,7 @@ So:
 
 ## Open design questions (see doc 00)
 
-- How to model **change over time** so "both valid" is represented cleanly.
-- How sensitive detection should be (more flags = safer but noisier).
+- Explicit **story-time** for non-linear narratives / flashbacks (timeline
+  refinement, Q5).
 - Whether to batch contradictions by entity, severity, or recency in the queue.
 - How much semantic-conflict detection to trust automatically vs. surface.

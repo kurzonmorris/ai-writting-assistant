@@ -74,19 +74,26 @@ Is "the captain" in this chapter the same person as "William" from chapter 2?
 Entity resolution decides this using:
 - Name and **alias** matching (doc 04 `EntityAlias`).
 - Context similarity (the surrounding facts).
-- When uncertain, we **prefer to ask** rather than wrongly merge two entities.
-  Over-merging is worse than a duplicate, because it corrupts the knowledge base.
-- **OPEN:** how aggressive auto-merge should be, and the review UX for uncertain
-  matches (doc 00).
+- **DECIDED (doc 00, Q7): ask the writer when unsure.** We auto-merge only when
+  confident; when uncertain, we surface an "are these the same?" prompt rather
+  than guessing. Over-merging is worse than a duplicate, because it corrupts the
+  knowledge base, so we err on the side of asking.
+- Still open: the exact confidence threshold for "confident enough to auto-merge"
+  and the precise review UX (doc 00).
 
 ### Step 5 — Merge facts (the careful part)
 For each extracted fact about a known entity:
-- **New information** (we didn't know it) → store it as an `ACTIVE` fact.
+- **New information** (we didn't know it) → store it as an `ACTIVE` fact, tagged
+  with its timeline position (doc 08).
 - **Restatement** (we already knew it, consistent) → keep one fact, optionally
   noting the additional source.
-- **Contradiction** (conflicts with an existing `ACTIVE` fact) → **do not
-  overwrite.** Create a `Contradiction` record linking the two facts and mark
-  them as `DISPUTED`. The writer decides later (doc 09).
+- **Change over time** (a new value for a time-varying attribute, at a *later*
+  timeline position) → this is **not** a conflict. Mark the earlier fact
+  `HISTORICAL` and make the new one the `ACTIVE`/current value (doc 08, doc 09).
+- **Contradiction** (conflicts with an existing fact at the *same* point in time)
+  → **do not overwrite.** Create a `Contradiction` linking the two facts, mark
+  them `DISPUTED`, subject to the project's sensitivity setting (doc 09). The
+  writer decides later.
 
 This is where "blue eyes vs. green eyes" is caught. The AI never picks a winner.
 

@@ -31,6 +31,23 @@ final set is **OPEN** (doc 00); above is a sensible, broad starting point that
 covers the examples the owner gave (characters, animals, pets, buildings, places,
 environments, items, equipment).
 
+### Priority order (DECIDED, doc 00 Q15)
+
+All types matter, but in this order of importance (most important first):
+
+1. **Characters** (and their voices) — the richest, highest-value type.
+2. **Places** (locations).
+3. **Environments**.
+4. **Factions**.
+5. **Equipment**.
+6. **Items**.
+
+(Creatures, animals, buildings, and events are also tracked; the list above is
+the owner's stated ranking of what matters most.) We use this ordering to:
+- decide what to **emphasise** during extraction when effort/cost is limited;
+- decide the **default ordering** of groups in the knowledge-base navigator (doc
+  10), so the most important categories appear first.
+
 ## Attributes (the details we capture)
 
 Each fact is an `attribute` + `value` pair tied to an entity (doc 04). Different
@@ -71,10 +88,32 @@ can always add attributes.
 ### Event attributes
 - What happened, when, where, who was involved, causes and consequences.
 
-> **Time / chronology is cross-cutting.** Many attributes change over the story
-> ("current location", "status"). How we represent change over time — e.g.
-> tying facts to a chapter/timeline so "as of chapter 10 he is in the capital" —
-> is an important design question marked **OPEN** in doc 00.
+## Chronology / change over time (DECIDED: track a timeline)
+
+Many attributes change legitimately as the story progresses — a character's
+location, mood, injuries, allegiance, or whether they're alive. **Decision (doc
+00, Q5): we track a timeline.**
+
+How it works:
+
+- Every fact carries a **timeline position** (`Fact.timelineOrder`, doc 04):
+  *"true as of chapter N"*. By default this comes from the source document's
+  order (chapter order); it can be overridden when the text places an event
+  elsewhere in time (e.g. a flashback).
+- An entity page shows the **current** state (the latest timeline value) and lets
+  the writer see **how it evolved** (the history).
+- A change over time is **not** a contradiction. When a later fact gives a new
+  value for a time-varying attribute, the earlier fact becomes `HISTORICAL`
+  (kept, not an error) rather than `DISPUTED`. Two facts only conflict if they
+  disagree **at the same point in time** (doc 09).
+
+This is what lets the assistant tell *"he moved to the capital in chapter 10"*
+apart from *"his eye colour changed for no reason"* — the first is a timeline
+progression, the second is a real contradiction to flag.
+
+> **Refinement still open (Q5):** using document/chapter order as the timeline is
+> a solid default, but stories with flashbacks or non-linear structure may need
+> explicit story-time. Tracked in doc 00.
 
 ## Aliases (one entity, many names)
 
