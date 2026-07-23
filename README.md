@@ -68,6 +68,12 @@ ai-writting-assistant/
 
 ## How to read this repository
 
+> **Building the site?** Start with
+> [`writers knowledge base.md`](writers%20knowledge%20base.md) — the single,
+> authoritative, build-ready reference that consolidates every screen, data
+> structure, security rule, backup/export plan, and the AI-access design. The
+> numbered `docs/` files below are the longer-form reasoning behind each decision.
+
 1. Start with [`docs/01-product-vision.md`](docs/01-product-vision.md) to
    understand *what* we are building and *why*.
 2. Then read [`docs/02-system-architecture.md`](docs/02-system-architecture.md)
